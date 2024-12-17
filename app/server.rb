@@ -9,7 +9,7 @@ STORAGE = {}
 post '/object' do
     id = params['id'] || SecureRandom.uuid
     STORAGE[id] = request.body.read
-    "Object stored with ID: ${id}"  
+    "Object stored with ID: #{id}"
 end
 
 # Fetch object
@@ -22,14 +22,14 @@ end
 # Delete object
 delete '/object/:id' do
     STORAGE.delete(params['id']) || halt(404, "Object not found")
-    "Object deleted"  
+    "Object deleted"
 end
 
 # List all objects
 get '/objects' do
-    if STORAGE.empty
+    if STORAGE.empty?
         "No objects stored." 
     else
-        STORAGE.keys.join("\m") 
-    end  
+        STORAGE.keys.join("\n")
+    end
 end
