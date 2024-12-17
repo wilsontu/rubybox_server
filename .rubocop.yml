@@ -1,0 +1,7 @@
+AllCops:
+  Exclude:
+    - 'db/schema.rb'
+  TargetRubyVersion: 3.2
+
+Layout/LineLength:
+  Max: 120
