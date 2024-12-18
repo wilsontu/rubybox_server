@@ -1,0 +1,11 @@
+# Ignore the SQLite database file
+storage.db
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+
+# Ignore editor backups
+*~
