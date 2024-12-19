@@ -43,5 +43,5 @@
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/rubybox-server.git
+   https://github.com/wilsontu/rubybox_server.git
    cd rubybox-server
