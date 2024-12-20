@@ -140,6 +140,19 @@ get '/upload/:id' do
     send_file result['file_path'], file_name: result['file_name'], type: result['content_type']
 end
 
+# Delete FILE
+delete '/upload/:id' do
+    id = params['id']
+    file_to_delete = DB.execute("SELECT * FROM uploads WHERE id = ?", id).first
+    DB.execute("DELETE FROM uploads WHERE id = ?", id)
+    if DB.changes == 0
+        halt 404, { message: 'File does not exist' }.to_json
+    else
+        File.delete(file_to_delete["file_path"]) if File.exist? file_to_delete["file_path"]
+        { message: "File deleted successfully" }.to_json
+    end
+end
+
 # List all files in the FILES table
 get '/uploads' do
     rows = DB.execute("SELECT * FROM uploads ORDER BY uploaded_at")
