@@ -9,3 +9,6 @@ storage.db
 
 # Ignore editor backups
 *~
+
+# Ignore uploads files
+uploads
