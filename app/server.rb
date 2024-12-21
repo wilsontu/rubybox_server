@@ -3,6 +3,12 @@ require 'securerandom'
 require 'sqlite3'
 require 'json'
 
+######################### Constants #########################
+
+DEFAULT_RESULTS_PER_PAGE = 10
+DEFAULT_NUM_PAGES = 1
+MAX_RESULTS_PER_PAGE = 50
+
 ############### Project Directories and Paths ###############
 
 #/
@@ -97,17 +103,41 @@ end
 
 # List all objects
 get '/objects' do
-    rows = DB.execute("SELECT id, content, created_at FROM objects ORDER BY created_at")
+    # Set default values for pagination
+    page = params['page']&.to_i || DEFAULT_NUM_PAGES
+    per_page = params['per_page']&.to_i || DEFAULT_RESULTS_PER_PAGE
+
+    # Handle error if per_page <= 0 or if per_page > max_results_per_page
+    halt 400, { message: "Invalid pagination parameter, per_page must be > 0" }.to_json unless per_page > 0
+    halt 400, { message: "Invalid pagination parameter, results per page must be <= #{MAX_RESULTS_PER_PAGE}" }.to_json unless per_page <= MAX_RESULTS_PER_PAGE
+
+
+    # Calculate the offset
+    offset = (page - 1) * per_page
+
+    # Fetch the total count of objects for metadata
+    rows = DB.execute("SELECT id, content, created_at FROM objects ORDER BY created_at LIMIT ? OFFSET ?", [per_page, offset])
+
+    # Get the total count of objects for metadata
+    total_count = DB.execute("SELECT COUNT(*) FROM objects")[0].values[0]
+
+    # Get total number of pages
+    num_pages = (total_count.to_f / per_page).ceil
+
+    # Error handling if page is out of range
+    halt 400, { message: "Page #{page} out of range. There are only #{num_pages} pages total" }.to_json unless page <= num_pages
+
+    # Format the response
     if rows.empty?
         {message: "No objects stored."}.to_json
     else
-        rows.map do |row|
-            {
-                id: row['id'],
-                content: row['content'],
-                created_at: row['created_at']
-            }
-        end.to_json
+        {
+            objects: rows.map { |row| { id: row['id'], content: row['content'], created_at: row['created_at']}},
+            page: page,
+            per_page: per_page,
+            total_count: total_count,
+            num_pages: (total_count.to_f/per_page).ceil
+        }.to_json
     end
 end
 
@@ -170,17 +200,40 @@ end
 
 # List all files in the FILES table
 get '/uploads' do
-    rows = DB.execute("SELECT * FROM uploads ORDER BY uploaded_at")
+    # Set default values for pagination
+    page = params['page']&.to_i || DEFAULT_NUM_PAGES
+    per_page = params['per_page']&.to_i || DEFAULT_RESULTS_PER_PAGE
+
+    # Handle error if per_page <= 0 or if per_page > max_results_per_page
+    halt 400, { message: "Invalid pagination parameter, per_page must be > 0" }.to_json unless per_page > 0
+    halt 400, { message: "Invalid pagination parameter, results per page must be <= #{MAX_RESULTS_PER_PAGE}" }.to_json unless per_page <= MAX_RESULTS_PER_PAGE
+
+    # Calculate the offset
+    offset = (page - 1) * per_page
+
+    # Fetch the total count of objects for metadata
+    rows = DB.execute("SELECT id, file_name, uploaded_at FROM uploads ORDER BY uploaded_at LIMIT ? OFFSET ?", [per_page, offset])
+
+    # Get the total count of objects for metadata
+    total_count = DB.execute("SELECT COUNT(*) FROM uploads")[0].values[0]
+
+    # Get total number of pages
+    num_pages = (total_count.to_f / per_page).ceil
+
+    # Error handling if page is out of range
+    halt 400, { message: "Page #{page} out of range. There are only #{num_pages} pages total" }.to_json unless page <= num_pages
+
+    # Format the response
     if rows.empty?
-        {message: "No objects stored."}.to_json
+        {message: "No files stored."}.to_json
     else
-        rows.map do |row|
-            {
-                id: row['id'],
-                file_name: row['file_name'],
-                created_at: row['uploaded_at']
-            }
-        end.to_json
+        {
+            objects: rows.map { |row| { id: row['id'], file_name: row['file_name'], uploaded_at: row['uploaded_at']}},
+            page: page,
+            per_page: per_page,
+            total_count: total_count,
+            num_pages: (total_count.to_f/per_page).ceil
+        }.to_json
     end
 end
 
