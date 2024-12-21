@@ -37,6 +37,15 @@ UPLOADS_DIR = File.expand_path('../uploads', __dir__)
 # Ensure uploads folder exists
 Dir.mkdir(UPLOADS_DIR) unless Dir.exist? UPLOADS_DIR
 
+# Restrict file types that could be uploaded
+ALLOWED_MIME_TYPES = [
+    'text/plain',           # .txt
+    'application/pdf',      # pdf
+    'image/jpeg',           # jpeg
+    'image/png',            # png
+    'image/gif'             # gif
+]
+
 
 ################ HTTP REQUESTS AND RESPONSES ###############
 
@@ -112,7 +121,13 @@ post '/upload' do
 
     # Get sinatra's file object: {filename: "example.pdf", type: # MIME type of the file, tempfile: # temporary file location}
     file = params['file']
-    halt 404, { error: 'No file provided' }.to_json unless file
+    halt 400, { error: 'No file provided' }.to_json unless file
+
+    # # Validate file type
+    content_type = file[:type]
+    unless ALLOWED_MIME_TYPES.include?(content_type)
+        halt 400, { error: "Unsupported file type: #{content_type}" }.to_json
+    end
 
     # Write the file path to uploads folder with file_name: uuid of the file
     file_path = File.join(UPLOADS_DIR, id)
