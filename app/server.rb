@@ -102,6 +102,7 @@ delete '/object/:id' do
 end
 
 # List all objects
+# Supports search and filtering (ex. /objects?keyword={}&start_date={}&end_date={})
 get '/objects' do
     # Set default values for pagination
     page = params['page']&.to_i || DEFAULT_NUM_PAGES
@@ -111,21 +112,67 @@ get '/objects' do
     halt 400, { message: "Invalid pagination parameter, per_page must be > 0" }.to_json unless per_page > 0
     halt 400, { message: "Invalid pagination parameter, results per page must be <= #{MAX_RESULTS_PER_PAGE}" }.to_json unless per_page <= MAX_RESULTS_PER_PAGE
 
+    # Check if request contains filters/searches
+    keyword = params['keyword']
+    start_date = params['start_date']
+    end_date = params['end_date']
+
+    # Error handling for invalid formats
+    if start_date && !start_date.match(/^\d{4}-\d{2}-\d{2}$/)
+        halt 400, { error: "Invalid start_date format. Use YYYY-MM-DD" }.to_json
+    end
+      
+    if end_date && !end_date.match(/^\d{4}-\d{2}-\d{2}$/)
+        halt 400, { error: "Invalid end_date format. Use YYYY-MM-DD" }.to_json
+    end
+
+    # Generate clauses for WHERE
+    where_clauses = []
+    parameters = []
+
+    if keyword
+        where_clauses << "content LIKE ?"
+        parameters << "%#{keyword}"
+    end
+
+    if start_date
+        where_clauses << "created_at >= ?"
+        parameters << start_date
+    end
+
+    if end_date
+        where_clauses << "created_at <= ?"
+        parameters << end_date
+    end
+
+    where_query = where_clauses.any? ? "WHERE #{where_clauses.join(' AND ')}" : ""
+
+    # Generate the request query
+    query = <<~SQL
+        SELECT id, content, created_at
+        FROM objects
+        #{where_query}
+        ORDER BY created_at
+        LIMIT ? OFFSET ?
+    SQL
 
     # Calculate the offset
     offset = (page - 1) * per_page
 
+    # Add all params to parameters
+    parameters.push(per_page, offset)
+
     # Fetch the total count of objects for metadata
-    rows = DB.execute("SELECT id, content, created_at FROM objects ORDER BY created_at LIMIT ? OFFSET ?", [per_page, offset])
+    rows = DB.execute(query, parameters)
 
     # Get the total count of objects for metadata
-    total_count = DB.execute("SELECT COUNT(*) FROM objects")[0].values[0]
+    total_count = DB.execute("SELECT COUNT(*) FROM objects #{where_query}", parameters[0...-2])[0].values[0]
 
     # Get total number of pages
     num_pages = (total_count.to_f / per_page).ceil
 
     # Error handling if page is out of range
-    halt 400, { message: "Page #{page} out of range. There are only #{num_pages} pages total" }.to_json unless page <= num_pages
+    halt 400, { message: "Page #{page} out of range. There are only #{num_pages} pages total" }.to_json unless page <= num_pages or total_count == 0
 
     # Format the response
     if rows.empty?
@@ -208,27 +255,69 @@ get '/uploads' do
     halt 400, { message: "Invalid pagination parameter, per_page must be > 0" }.to_json unless per_page > 0
     halt 400, { message: "Invalid pagination parameter, results per page must be <= #{MAX_RESULTS_PER_PAGE}" }.to_json unless per_page <= MAX_RESULTS_PER_PAGE
 
+    # Search and filtering
+    keyword = params['keyword']
+    start_date = params['start_date']
+    end_date = params['end_date']
+    content_type = params['content_type']
+
+    where_clauses = []
+    parameters = []
+
+    if keyword
+        where_clauses << "file_name LIKE ?"
+        parameters << "%#{keyword}%"
+    end
+
+    if content_type
+        where_clauses << "content_type LIKE ?"  
+        parameters << "%#{content_type}%"
+    end
+
+    if start_date
+        where_clauses << "uploaded_at >= ?"
+        parameters << start_date
+    end
+
+    if end_date
+        where_clauses << "uploaded_at <= ?"
+        parameters << end_date
+    end
+
+    where_query = where_clauses.any? ? "WHERE #{where_clauses.join(" AND ")}" : ""
+
+    query = <<~SQL
+        SELECT id, file_name, uploaded_at, content_type
+        FROM uploads
+        #{where_query}
+        ORDER BY uploaded_at
+        LIMIT ? OFFSET ?
+    SQL
+
     # Calculate the offset
     offset = (page - 1) * per_page
 
+    # Add remaining params to parameters
+    parameters.push(per_page, offset)
+
     # Fetch the total count of objects for metadata
-    rows = DB.execute("SELECT id, file_name, uploaded_at FROM uploads ORDER BY uploaded_at LIMIT ? OFFSET ?", [per_page, offset])
+    rows = DB.execute(query, parameters)
 
     # Get the total count of objects for metadata
-    total_count = DB.execute("SELECT COUNT(*) FROM uploads")[0].values[0]
+    total_count = DB.execute("SELECT COUNT(*) FROM uploads #{where_query}", parameters[0...-2])[0].values[0]
 
     # Get total number of pages
     num_pages = (total_count.to_f / per_page).ceil
 
     # Error handling if page is out of range
-    halt 400, { message: "Page #{page} out of range. There are only #{num_pages} pages total" }.to_json unless page <= num_pages
+    halt 400, { message: "Page #{page} out of range. There are only #{num_pages} pages total" }.to_json unless page <= num_pages or total_count == 0
 
     # Format the response
     if rows.empty?
         {message: "No files stored."}.to_json
     else
         {
-            objects: rows.map { |row| { id: row['id'], file_name: row['file_name'], uploaded_at: row['uploaded_at']}},
+            objects: rows.map { |row| { id: row['id'], file_name: row['file_name'], uploaded_at: row['uploaded_at'], content_type: row['content_type']}},
             page: page,
             per_page: per_page,
             total_count: total_count,
