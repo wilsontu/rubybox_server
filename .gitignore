@@ -1,5 +1,5 @@
 # Ignore the SQLite database file
-storage.db
+*.db
 
 # Ignore log files
 *.log
@@ -12,3 +12,7 @@ storage.db
 
 # Ignore uploads files
 uploads
+
+# Ignore rubocop prefs
+.rubocop.yml
+
