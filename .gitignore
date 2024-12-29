@@ -16,3 +16,5 @@ uploads
 # Ignore rubocop prefs
 .rubocop.yml
 
+# Ignore env file
+.env
