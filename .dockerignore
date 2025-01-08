@@ -1,0 +1,4 @@
+storage.db
+uploads/
+spec/
+.env.test

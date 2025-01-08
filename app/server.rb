@@ -4,6 +4,7 @@ require 'sqlite3'
 require 'json'
 require 'rack'
 require 'dotenv'
+require 'puma'
 
 ######################### Constants #########################
 

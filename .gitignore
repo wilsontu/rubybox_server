@@ -18,3 +18,12 @@ uploads
 
 # Ignore env file
 .env
+
+# Ignore Docker related cache and log files
+*.pid
+*.log
+/tmp/
+
+# Ignore runtime-generated files
+/data/
+/uploads/
